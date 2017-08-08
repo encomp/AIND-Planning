@@ -371,6 +371,14 @@ class PlanningGraph():
             return False
         return True
 
+    def __intersection(self, clauses_1, clauses_2):
+        unique_clauses_1 = set(clauses_1)
+        unique_clauses_2 = set(clauses_2)
+        intersection = unique_clauses_1.intersection(unique_clauses_2)
+        if len(intersection) > 1:
+            return True
+        return False
+
     def inconsistent_effects_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
         Test a pair of actions for inconsistent effects, returning True if
@@ -385,8 +393,8 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Inconsistent Effects between nodes
-        return False
+        return self.__intersection(node_a1.action.effect_add, node_a2.action.effect_rem) \
+               or self.__intersection(node_a2.action.effect_add, node_a1.action.effect_rem)
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
@@ -402,8 +410,10 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Interference between nodes
-        return False
+        return self.__intersection(node_a1.action.effect_add, node_a2.action.precond_neg) \
+               or self.__intersection(node_a1.action.effect_rem, node_a2.action.precond_pos) \
+               or self.__intersection(node_a2.action.effect_add, node_a1.action.precond_neg) \
+               or self.__intersection(node_a2.action.effect_rem, node_a1.action.precond_pos)
 
     def competing_needs_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         """
@@ -416,7 +426,15 @@ class PlanningGraph():
         :return: bool
         """
 
-        # TODO test for Competing Needs between nodes
+        mutex1 = set(node_a1.mutex)
+        for parent in node_a1.parents:
+            mutex1 = mutex1.union(parent.mutex)
+        mutex2 = set(node_a2.mutex)
+        for parent in node_a2.parents:
+            mutex2 = mutex2.union(parent.mutex)
+        intersection = mutex1.intersection(mutex2)
+        if len(intersection) > 1:
+            return True
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -451,8 +469,7 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for negation between nodes
-        return False
+        return node_s1.symbol == node_s2.symbol and node_s1.is_pos != node_s2.is_pos
 
     def inconsistent_support_mutex(self, node_s1: PgNode_s, node_s2: PgNode_s):
         """
@@ -470,8 +487,11 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for Inconsistent Support between nodes
-        return False
+        for parent1 in node_s1.parents:
+            for parent2 in node_s2.parents:
+                if not parent1.is_mutex(parent2):
+                    return False
+        return True
 
     def h_levelsum(self) -> int:
         """The sum of the level costs of the individual goals (admissible if goals independent)
@@ -479,6 +499,10 @@ class PlanningGraph():
         :return: int
         """
         level_sum = 0
-        # TODO implement
-        # for each goal in the problem, determine the level cost, then add them together
+        for goal in self.problem.goal:
+            goalNode = PgNode_s(goal, True)
+            for level, states in enumerate(self.s_levels):
+                if goalNode in states:
+                    level_sum += level
+                    break
         return level_sum
