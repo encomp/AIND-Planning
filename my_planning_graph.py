@@ -313,11 +313,10 @@ class PlanningGraph():
         for action in self.all_actions:
             pgNodeAction = PgNode_a(action)
             if pgNodeAction.prenodes.issubset(self.s_levels[level]):
-                self.a_levels[level].append(pgNodeAction)
-                for pgNodeState in self.s_levels[level]:
-                    if pgNodeState in pgNodeAction.prenodes:
-                        pgNodeState.children(pgNodeAction)
-                        pgNodeAction.parents(pgNodeState)
+                self.a_levels[level].add(pgNodeAction)
+                for pgNodeState in pgNodeAction.prenodes:
+                    pgNodeState.children.add(pgNodeAction)
+                    pgNodeAction.parents.add(pgNodeState)
 
 
     def add_literal_level(self, level):
@@ -389,7 +388,7 @@ class PlanningGraph():
         unique_clauses_1 = set(clauses_1)
         unique_clauses_2 = set(clauses_2)
         intersection = unique_clauses_1.intersection(unique_clauses_2)
-        if len(intersection) > 1:
+        if len(intersection) > 0:
             return True
         return False
 
@@ -439,16 +438,10 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-
-        mutex1 = set(node_a1.mutex)
-        for parent in node_a1.parents:
-            mutex1 = mutex1.union(parent.mutex)
-        mutex2 = set(node_a2.mutex)
-        for parent in node_a2.parents:
-            mutex2 = mutex2.union(parent.mutex)
-        intersection = mutex1.intersection(mutex2)
-        if len(intersection) > 1:
-            return True
+        for parent_1 in node_a1.parents:
+            for parent_2 in node_a2.parents:
+                if parent_1.is_mutex(parent_2):
+                    return True
         return False
 
     def update_s_mutex(self, nodeset: set):
